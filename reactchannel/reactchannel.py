@@ -259,7 +259,7 @@ class ReactChannel(commands.Cog):
 
     @commands.command()
     @commands.guild_only()
-    async def karma(self, ctx: commands.Context, member: discord.Member = None):
+    async def reactkarma(self, ctx: commands.Context, member: discord.Member = None):
         """View your (or another users) total karma for messages in this server."""
         prefix = f"{ctx.message.author.mention}, you have"
         if member and member != ctx.message.author:
@@ -272,7 +272,7 @@ class ReactChannel(commands.Cog):
 
     @commands.command()
     @commands.guild_only()
-    async def karmatop(self, ctx: commands.Context):
+    async def reactkarmatop(self, ctx: commands.Context):
         """View the members in this server with the highest total karma."""
         all_guild_members_dict = await self.config.all_members(ctx.guild)
         all_guild_members_sorted_list = sorted(
