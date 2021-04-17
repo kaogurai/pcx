@@ -136,16 +136,6 @@ class AutoRoomCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
         member_or_role: Union[discord.Role, discord.Member] = None,
     ) -> bool:
         """Actually do channel edit for allow/deny."""
-        if not await self.check_required_perms(ctx.guild):
-            hint = await ctx.send(
-                error(
-                    f"{ctx.message.author.mention}, I do not have the required permissions to do this. "
-                    "Please let the staff know about this!"
-                )
-            )
-            await delete(ctx.message, delay=10)
-            await delete(hint, delay=10)
-            return False
         channel = self._get_current_voice_channel(ctx.message.author)
         autoroom_info = await self._get_autoroom_info(channel)
         if not autoroom_info:
@@ -155,10 +145,23 @@ class AutoRoomCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
             await delete(ctx.message, delay=5)
             await delete(hint, delay=5)
             return False
-        if ctx.message.author != autoroom_info["owner"]:
+        if not channel.permissions_for(channel.guild.me).manage_roles:
             hint = await ctx.send(
                 error(
-                    f"{ctx.message.author.mention}, you are not the owner of this AutoRoom."
+                    f"{ctx.message.author.mention}, I do not have the required permissions to do this. "
+                    "Please let the staff know about this!"
+                )
+            )
+            await delete(ctx.message, delay=10)
+            await delete(hint, delay=10)
+            return False
+        if ctx.message.author != autoroom_info["owner"]:
+            reason_server = ""
+            if autoroom_info["owner"] == ctx.guild.me:
+                reason_server = " (it is a server AutoRoom)"
+            hint = await ctx.send(
+                error(
+                    f"{ctx.message.author.mention}, you are not the owner of this AutoRoom{reason_server}."
                 )
             )
             await delete(ctx.message, delay=5)
