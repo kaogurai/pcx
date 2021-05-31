@@ -26,7 +26,9 @@ class AutoRoomCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
     @autoroom.command(name="settings", aliases=["info"])
     async def autoroom_settings(self, ctx: commands.Context):
         """Display current settings."""
-        autoroom_channel, autoroom_info = await self._get_autoroom_channel_and_info(ctx)
+        autoroom_channel, autoroom_info = await self._get_autoroom_channel_and_info(
+            ctx, check_owner=False
+        )
         if not autoroom_info:
             return
 
@@ -70,9 +72,11 @@ class AutoRoomCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
             bucket = self.bucket_autoroom_name.get_bucket(autoroom_channel)
             retry_after = bucket.update_rate_limit()
             if retry_after:
+                per_display = bucket.per - self.extra_channel_name_change_delay
                 hint_text = error(
-                    f"{ctx.message.author.mention}, you can only modify an AutoRoom name twice every 10 minutes with "
-                    f"this command. You can try again in {humanize_timedelta(seconds=max(retry_after, 1))}."
+                    f"{ctx.message.author.mention}, you can only modify an AutoRoom name **{bucket.rate}** times "
+                    f"every **{humanize_timedelta(seconds=per_display)}** with this command. "
+                    f"You can try again in **{humanize_timedelta(seconds=max(1, min(per_display, retry_after)))}**."
                     "\n\n"
                     "Alternatively, you can modify the channel yourself by either right clicking the channel on "
                     "desktop or by long pressing it on mobile."
@@ -182,19 +186,6 @@ class AutoRoomCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
             await delete(hint, delay=10)
             return False
 
-        if ctx.message.author != autoroom_info["owner"]:
-            reason_server = ""
-            if autoroom_info["owner"] == ctx.guild.me:
-                reason_server = " (it is a server AutoRoom)"
-            hint = await ctx.send(
-                error(
-                    f"{ctx.message.author.mention}, you are not the owner of this AutoRoom{reason_server}."
-                )
-            )
-            await delete(ctx.message, delay=10)
-            await delete(hint, delay=10)
-            return False
-
         denied_message = ""
         if not member_or_role:
             # public/private command
@@ -287,7 +278,9 @@ class AutoRoomCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
             "member_roles": member_roles,
         }
 
-    async def _get_autoroom_channel_and_info(self, ctx: commands.Context):
+    async def _get_autoroom_channel_and_info(
+        self, ctx: commands.Context, check_owner: bool = True
+    ):
         autoroom_channel = self._get_current_voice_channel(ctx.message.author)
         autoroom_info = await self._get_autoroom_info(autoroom_channel)
         if not autoroom_info:
@@ -296,5 +289,17 @@ class AutoRoomCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
             )
             await delete(ctx.message, delay=5)
             await delete(hint, delay=5)
+            return None, None
+        if check_owner and ctx.message.author != autoroom_info["owner"]:
+            reason_server = ""
+            if autoroom_info["owner"] == ctx.guild.me:
+                reason_server = " (it is a server AutoRoom)"
+            hint = await ctx.send(
+                error(
+                    f"{ctx.message.author.mention}, you are not the owner of this AutoRoom{reason_server}."
+                )
+            )
+            await delete(ctx.message, delay=10)
+            await delete(hint, delay=10)
             return None, None
         return autoroom_channel, autoroom_info
